@@ -7,210 +7,203 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
-    --bg: #ffffff;
-    --bg-secondary: #f5f5f3;
-    --text: #1a1a18;
-    --text-muted: #6b6b69;
-    --text-hint: #9b9b99;
+    --bg: #ffffff; --bg2: #f5f5f3;
+    --text: #1a1a18; --text2: #6b6b69; --text3: #9b9b99;
     --border: rgba(0,0,0,0.12);
-    --radius-md: 8px;
-    --radius-lg: 12px;
-    --green-bg: #EAF3DE; --green-text: #27500A;
-    --amber-bg: #FAEEDA; --amber-text: #633806;
-    --red-bg: #FCEBEB; --red-text: #791F1F;
+    --r-md: 8px; --r-lg: 12px;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1e1e1c;
-      --bg-secondary: #2a2a28;
-      --text: #f0f0ee;
-      --text-muted: #9b9b99;
-      --text-hint: #6b6b69;
-      --border: rgba(255,255,255,0.12);
-      --green-bg: #173404; --green-text: #C0DD97;
-      --amber-bg: #412402; --amber-text: #FAC775;
-      --red-bg: #501313; --red-text: #F7C1C1;
-    }
+    :root { --bg:#1e1e1c; --bg2:#2a2a28; --text:#f0f0ee; --text2:#9b9b99; --text3:#6b6b69; --border:rgba(255,255,255,0.12); }
   }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    padding: 16px;
-    min-height: 100vh;
-  }
-  .card {
-    background: var(--bg);
-    border: 0.5px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 20px;
-    max-width: 480px;
-    margin: 0 auto;
-  }
-  .verdict { border-radius: var(--radius-md); padding: 8px 14px; text-align: center; font-size: 13px; font-weight: 500; }
-  .verdict-good { background: var(--green-bg); color: var(--green-text); }
-  .verdict-caution { background: var(--amber-bg); color: var(--amber-text); }
-  .verdict-bad { background: var(--red-bg); color: var(--red-text); }
-  .tag { font-size: 11px; border: 0.5px solid var(--border); border-radius: 999px; padding: 2px 8px; display: inline-block; margin: 2px; color: var(--text-muted); }
-  .stat-label { font-size: 12px; color: var(--text-muted); margin-bottom: 3px; }
-  .stat-val { font-size: 20px; font-weight: 500; color: var(--text); }
-  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; display: inline-block; margin-top: 4px; }
-  .pill-ok { background: var(--green-bg); color: var(--green-text); }
-  .pill-bad { background: var(--red-bg); color: var(--red-text); }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 16px; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 20px; margin-bottom: 12px; max-width: 520px; margin-left: auto; margin-right: auto; }
   hr { border: none; border-top: 0.5px solid var(--border); margin: 14px 0; }
-  .updated { font-size: 11px; color: var(--text-hint); margin-top: 10px; }
-  .spinner { display: flex; align-items: center; justify-content: center; height: 100px; color: var(--text-muted); font-size: 14px; }
-  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; }
+  .stat-label { font-size: 12px; color: var(--text2); margin-bottom: 3px; }
+  .stat-val { font-size: 20px; font-weight: 500; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; display: inline-block; margin-top: 4px; }
+  .updated { font-size: 11px; color: var(--text3); margin-top: 10px; }
+  .gear-item { font-size: 12px; color: var(--text2); padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+  .gear-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+  .day-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  .day-row:last-child { border-bottom: none; }
+  .score-badge { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 999px; white-space: nowrap; min-width: 76px; text-align: center; }
+  .retry-btn { font-size: 12px; padding: 3px 10px; border: 0.5px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; }
 </style>
 </head>
 <body>
-<div class="card">
-  <div id="content"><div class="spinner">Loading Helsinki weather...</div></div>
-</div>
+<div class="card"><div id="now-content" style="display:flex;align-items:center;justify-content:center;height:80px;font-size:13px;color:var(--text2);">Loading Helsinki weather...</div></div>
+<div class="card"><div id="week-content" style="height:40px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text2);">Loading forecast...</div></div>
 
 <script>
-const PREFS = {
-  minTemp: -10, winterPantsTemp: -5,
-  comfortTempCalm: 5, comfortTempWindy: 10,
-  maxWind: 5, maxGust: 10,
-  rainOk: true, snowOk: true
-};
+const PREFS = { minTemp:-10, winterPantsTemp:-5, comfortCalm:5, comfortWindy:10, maxWind:5, maxGust:10 };
 
-function wmoDesc(c) {
-  if (c === 0) return { label: 'Clear', icon: '☀️' };
-  if (c <= 2) return { label: 'Partly cloudy', icon: '⛅' };
-  if (c === 3) return { label: 'Overcast', icon: '☁️' };
-  if (c <= 49) return { label: 'Foggy', icon: '🌫️' };
-  if (c <= 57) return { label: 'Drizzle', icon: '🌦️' };
-  if (c <= 65) return { label: 'Rain', icon: '🌧️' };
-  if (c <= 77) return { label: 'Snow', icon: '❄️' };
-  if (c <= 82) return { label: 'Showers', icon: '🌧️' };
-  if (c <= 86) return { label: 'Snow showers', icon: '🌨️' };
-  if (c <= 99) return { label: 'Thunderstorm', icon: '⛈️' };
-  return { label: 'Unknown', icon: '?' };
+const LEVELS = [
+  { score:5, label:'Perfect',      bg:'#EAF3DE', color:'#27500A', darkBg:'#173404', darkColor:'#C0DD97' },
+  { score:4, label:'Good',         bg:'#D6ECC0', color:'#27500A', darkBg:'#27500A', darkColor:'#C0DD97' },
+  { score:3, label:'With caution', bg:'#FAEEDA', color:'#633806', darkBg:'#412402', darkColor:'#FAC775' },
+  { score:2, label:'Not ideal',    bg:'#FAD9B0', color:'#633806', darkBg:'#412402', darkColor:'#FAC775' },
+  { score:1, label:'Skip',         bg:'#FCEBEB', color:'#791F1F', darkBg:'#501313', darkColor:'#F7C1C1' },
+];
+
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+function lvStyle(lv) {
+  return `background:${dark?lv.darkBg:lv.bg};color:${dark?lv.darkColor:lv.color};`;
 }
-function isRainy(c) { return (c>=51&&c<=67)||(c>=80&&c<=82)||c>=95; }
-function isSnowy(c) { return (c>=71&&c<=77)||(c>=85&&c<=86); }
 
-function evaluate(temp, wind, gust, wmo) {
-  const tips = []; let score = 'good';
-  if (temp < PREFS.minTemp) return { score: 'bad', label: 'Stay inside', tips: ['Too cold'] };
-  if (wind >= PREFS.maxWind) { score = 'caution'; tips.push('Strong wind'); }
-  if (gust >= PREFS.maxGust) { score = 'caution'; tips.push('Gusty'); }
+function getScore(temp, wind, gust, wmo) {
+  if (temp < PREFS.minTemp) return 1;
   const isWindy = wind >= PREFS.maxWind;
-  if (temp < (isWindy ? PREFS.comfortTempWindy : PREFS.comfortTempCalm)) { if (score==='good') score='caution'; tips.push('Dress warmly'); }
-  if (temp < PREFS.winterPantsTemp) tips.push('Winter pants');
-  if (isRainy(wmo)) { if (score==='good') score='caution'; tips.push('Light rain — waterproof up'); }
-  if (isSnowy(wmo)) { if (score==='good') score='caution'; tips.push('Snow — studded tires'); }
-  if (!tips.length) tips.push('Great conditions');
-  const labels = { good:'Good to go', caution:'With caution', bad:'Skip today' };
-  return { score, label: labels[score], tips };
+  const comfortThreshold = isWindy ? PREFS.comfortWindy : PREFS.comfortCalm;
+  const rainy = (wmo>=51&&wmo<=67)||(wmo>=80&&wmo<=82)||wmo>=95;
+  const snowy = (wmo>=71&&wmo<=77)||(wmo>=85&&wmo<=86);
+  let penalty = 0;
+  if (wind >= PREFS.maxWind || gust >= PREFS.maxGust) penalty++;
+  if (rainy) penalty++;
+  if (snowy) penalty++;
+  if (temp < comfortThreshold && temp >= PREFS.minTemp) penalty++;
+  if (temp < PREFS.winterPantsTemp) penalty++;
+  return Math.max(1, 5 - penalty);
+}
+
+function levelInfo(score) { return LEVELS.find(l => l.score === score) || LEVELS[4]; }
+
+function getGear(temp, wind, wmo) {
+  if (temp < PREFS.minTemp) return ['Too cold — stay inside'];
+  const gear = [];
+  const rainy = (wmo>=51&&wmo<=67)||(wmo>=80&&wmo<=82)||wmo>=95;
+  const snowy = (wmo>=71&&wmo<=77)||(wmo>=85&&wmo<=86);
+  if (temp < PREFS.winterPantsTemp) gear.push('Winter pants');
+  else if (temp < PREFS.comfortCalm) gear.push('Thermal tights');
+  if (temp < 0) gear.push('Insulated gloves & balaclava');
+  else if (temp < 5) gear.push('Gloves & warm hat');
+  if (temp < 5) gear.push('Winter jacket');
+  else if (temp < 10) gear.push('Fleece or light jacket');
+  else gear.push('Regular cycling kit');
+  if (rainy) gear.push('Waterproof jacket');
+  if (snowy) gear.push('Studded tires');
+  if (wind >= PREFS.maxWind) gear.push('Windproof outer layer');
+  return gear;
+}
+
+function wmoIcon(c) {
+  if (c===0) return '☀️'; if (c<=2) return '⛅'; if (c===3) return '☁️';
+  if (c<=49) return '🌫️'; if (c<=57) return '🌦️'; if (c<=65) return '🌧️';
+  if (c<=77) return '❄️'; if (c<=82) return '🌧️'; if (c<=86) return '🌨️';
+  return '⛈️';
 }
 
 function tempColor(t) {
-  if (t < -5) return '#85B7EB';
-  if (t < 5) return '#9FE1CB';
-  if (t < 15) return '#97C459';
-  return '#EF9F27';
+  if (t < -5) return '#85B7EB'; if (t < 5) return '#9FE1CB';
+  if (t < 15) return '#97C459'; return '#EF9F27';
 }
 
-function render(data) {
+function renderNow(data) {
   const now = new Date();
-  const idx = Math.max(0, data.hourly.time.findIndex(t => new Date(t) >= now));
-  const temp = data.hourly.temperature_2m[idx];
-  const wind = data.hourly.wind_speed_10m[idx];
-  const gust = data.hourly.wind_gusts_10m[idx];
-  const wmo = data.hourly.weather_code[idx];
-  const humidity = data.hourly.relative_humidity_2m[idx];
-  const { score, label, tips } = evaluate(temp, wind, gust, wmo);
-  const { label: wLabel, icon } = wmoDesc(wmo);
-  const updatedStr = now.toLocaleTimeString('fi-FI', { hour:'2-digit', minute:'2-digit' });
+  let idx = data.hourly.time.findIndex(t => new Date(t) >= now);
+  if (idx < 0) idx = 0;
+  const temp=data.hourly.temperature_2m[idx], wind=data.hourly.wind_speed_10m[idx];
+  const gust=data.hourly.wind_gusts_10m[idx], wmo=data.hourly.weather_code[idx];
+  const hum=data.hourly.relative_humidity_2m[idx];
+  const score=getScore(temp,wind,gust,wmo), lv=levelInfo(score);
+  const gear=getGear(temp,wind,wmo);
+  const updatedStr=now.toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'});
 
-  const hours = [];
-  for (let i = 0; i < 12; i++) {
-    const j = idx + i;
-    if (j >= data.hourly.time.length) break;
-    const hr = new Date(data.hourly.time[j]).getHours();
-    const t = data.hourly.temperature_2m[j];
-    const w = data.hourly.wind_speed_10m[j];
-    const g = data.hourly.wind_gusts_10m[j];
-    const c = data.hourly.weather_code[j];
-    const ev = evaluate(t, w, g, c);
-    hours.push({ hr, temp: t, score: ev.score });
+  const hours=[];
+  for(let i=0;i<12;i++){
+    const j=idx+i; if(j>=data.hourly.time.length) break;
+    const hr=new Date(data.hourly.time[j]).getHours();
+    const t=data.hourly.temperature_2m[j],w=data.hourly.wind_speed_10m[j];
+    const g=data.hourly.wind_gusts_10m[j],c=data.hourly.weather_code[j];
+    const sc=getScore(t,w,g,c), lc=levelInfo(sc);
+    hours.push({hr,temp:t,bg:dark?lc.darkBg:lc.bg});
   }
 
-  const dotColors = { good:'#639922', caution:'#BA7517', bad:'#E24B4A' };
+  const windOk=wind<PREFS.maxWind, gustOk=gust<PREFS.maxGust;
+  const okBg=dark?'#173404':'#EAF3DE', okTxt=dark?'#C0DD97':'#27500A';
+  const badBg=dark?'#501313':'#FCEBEB', badTxt=dark?'#F7C1C1':'#791F1F';
 
-  document.getElementById('content').innerHTML = `
+  document.getElementById('now-content').innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
       <div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">Helsinki · now</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">Helsinki · now</div>
         <div style="display:flex;align-items:baseline;gap:8px;">
           <span style="font-size:42px;font-weight:500;">${Math.round(temp)}°</span>
-          <span style="font-size:26px;">${icon}</span>
+          <span style="font-size:22px;">${wmoIcon(wmo)}</span>
         </div>
-        <div style="font-size:13px;color:var(--text-muted);">${wLabel}</div>
       </div>
       <div style="text-align:right;">
-        <div class="verdict verdict-${score}">${label}</div>
-        <div style="margin-top:8px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:3px;">
-          ${tips.map(t => `<span class="tag">${t}</span>`).join('')}
-        </div>
+        <div style="${lvStyle(lv)}border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;">${lv.label}</div>
+        <div style="font-size:11px;color:var(--text2);margin-top:5px;">score ${score} / 5</div>
       </div>
     </div>
     <hr>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
-      <div>
-        <div class="stat-label">Wind</div>
-        <div class="stat-val">${Math.round(wind)} <span style="font-size:13px;font-weight:400;color:var(--text-muted);">m/s</span></div>
-        <span class="pill ${wind < PREFS.maxWind ? 'pill-ok' : 'pill-bad'}">${wind < PREFS.maxWind ? 'calm' : 'strong'}</span>
-      </div>
-      <div>
-        <div class="stat-label">Gusts</div>
-        <div class="stat-val">${Math.round(gust)} <span style="font-size:13px;font-weight:400;color:var(--text-muted);">m/s</span></div>
-        <span class="pill ${gust < PREFS.maxGust ? 'pill-ok' : 'pill-bad'}">${gust < PREFS.maxGust ? 'ok' : 'gusty'}</span>
-      </div>
-      <div>
-        <div class="stat-label">Humidity</div>
-        <div class="stat-val">${Math.round(humidity)}<span style="font-size:13px;font-weight:400;color:var(--text-muted);">%</span></div>
-      </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px;">
+      <div><div class="stat-label">Wind</div><div class="stat-val">${Math.round(wind)} <span style="font-size:12px;font-weight:400;color:var(--text2);">m/s</span></div><span class="pill" style="background:${windOk?okBg:badBg};color:${windOk?okTxt:badTxt};">${windOk?'calm':'strong'}</span></div>
+      <div><div class="stat-label">Gusts</div><div class="stat-val">${Math.round(gust)} <span style="font-size:12px;font-weight:400;color:var(--text2);">m/s</span></div><span class="pill" style="background:${gustOk?okBg:badBg};color:${gustOk?okTxt:badTxt};">${gustOk?'ok':'gusty'}</span></div>
+      <div><div class="stat-label">Humidity</div><div class="stat-val">${Math.round(hum)}<span style="font-size:12px;font-weight:400;color:var(--text2);">%</span></div></div>
     </div>
+    <div style="font-size:12px;font-weight:500;margin-bottom:6px;">What to wear</div>
+    ${gear.map(g=>`<div class="gear-item"><div class="gear-dot"></div>${g}</div>`).join('')}
     <hr>
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Next 12 hours</div>
-    <div style="display:flex;gap:4px;align-items:flex-end;height:64px;">
-      ${hours.map(h => {
-        const barH = Math.max(4, Math.min(44, (h.temp + 20) * 1.4));
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Next 12 hours</div>
+    <div style="display:flex;gap:3px;align-items:flex-end;height:56px;">
+      ${hours.map(h=>{
+        const barH=Math.max(4,Math.min(40,(h.temp+20)*1.3));
         return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
           <div style="width:100%;flex:1;display:flex;align-items:flex-end;">
             <div style="width:100%;height:${barH}px;background:${tempColor(h.temp)};border-radius:2px;opacity:0.75;"></div>
           </div>
-          <div style="width:8px;height:8px;border-radius:50%;background:${dotColors[h.score]};"></div>
-          <div style="font-size:9px;color:var(--text-muted);">${h.hr}h</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:${h.bg};border:1px solid var(--border);"></div>
+          <div style="font-size:9px;color:var(--text2);">${h.hr}h</div>
         </div>`;
       }).join('')}
-    </div>
-    <div style="display:flex;gap:12px;margin-top:8px;font-size:11px;color:var(--text-muted);">
-      <span><span class="dot" style="background:#639922;"></span>Good</span>
-      <span><span class="dot" style="background:#BA7517;"></span>Caution</span>
-      <span><span class="dot" style="background:#E24B4A;"></span>Skip</span>
     </div>
     <div class="updated">Updated ${updatedStr} · refreshes every 30 min</div>
   `;
 }
 
-async function load() {
-  try {
-    const url = 'https://api.open-meteo.com/v1/forecast?latitude=60.1699&longitude=24.9384&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,weather_code&wind_speed_unit=ms&forecast_days=2&timezone=Europe%2FHelsinki';
-    const res = await fetch(url);
-    const data = await res.json();
-    render(data);
-  } catch(e) {
-    document.getElementById('content').innerHTML = '<div class="spinner">Could not load weather data</div>';
-  }
+function renderWeek(data) {
+  const days=data.daily;
+  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const rows=days.time.map((dateStr,i)=>{
+    const d=new Date(dateStr);
+    const name=i===0?'Today':i===1?'Tomorrow':dayNames[d.getDay()];
+    const tmax=days.temperature_2m_max[i], tmin=days.temperature_2m_min[i];
+    const wind=days.wind_speed_10m_max[i], gust=days.wind_gusts_10m_max[i], wmo=days.weather_code[i];
+    const score=getScore((tmax+tmin)/2,wind,gust,wmo), lv=levelInfo(score);
+    return `<div class="day-row">
+      <div style="font-size:13px;font-weight:500;width:70px;flex-shrink:0;">${name}</div>
+      <div style="font-size:16px;flex-shrink:0;">${wmoIcon(wmo)}</div>
+      <div style="flex:1;font-size:12px;color:var(--text2);">${Math.round(tmin)}°–${Math.round(tmax)}° &nbsp;💨${Math.round(wind)}m/s</div>
+      <div class="score-badge" style="${lvStyle(lv)}">${lv.label}</div>
+    </div>`;
+  });
+  document.getElementById('week-content').innerHTML = `
+    <div style="font-size:12px;font-weight:500;margin-bottom:4px;">7-day forecast</div>
+    ${rows.join('')}
+    <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
+      ${LEVELS.map(l=>`<span style="font-size:11px;${lvStyle(l)}padding:2px 8px;border-radius:999px;">${l.score} · ${l.label}</span>`).join('')}
+    </div>
+  `;
 }
 
+async function load() {
+  try {
+    const url='https://api.open-meteo.com/v1/forecast?latitude=60.1699&longitude=24.9384' +
+      '&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,weather_code' +
+      '&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,weather_code' +
+      '&wind_speed_unit=ms&forecast_days=7&timezone=Europe%2FHelsinki';
+    const res=await fetch(url);
+    if(!res.ok) throw new Error();
+    const data=await res.json();
+    renderNow(data); renderWeek(data);
+  } catch(e) {
+    document.getElementById('now-content').innerHTML='<div style="text-align:center;padding:20px 0;font-size:13px;color:var(--text2);">Could not load weather &nbsp;<button class="retry-btn" onclick="load()">Retry</button></div>';
+    document.getElementById('week-content').innerHTML='';
+  }
+}
 load();
-setInterval(load, 30 * 60 * 1000);
+setInterval(load,30*60*1000);
 </script>
 </body>
 </html>
