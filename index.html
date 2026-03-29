@@ -169,6 +169,7 @@ function renderNow(d) {
     <hr>
 
     <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Next 12 hours</div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Bar height & color = temperature · Dot color = cycling score</div>
     <div style="display:flex;gap:3px;align-items:flex-end;height:52px;">
       ${hrs.map(h=>{
         const bh=Math.max(4,Math.min(38,(h.temp+20)*1.2));
