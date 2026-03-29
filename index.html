@@ -11,195 +11,219 @@
     --text: #1a1a18; --text2: #6b6b69; --text3: #9b9b99;
     --border: rgba(0,0,0,0.12);
     --r-md: 8px; --r-lg: 12px;
+    --green-bg:#EAF3DE; --green-tx:#27500A;
+    --amber-bg:#FAEEDA; --amber-tx:#633806;
+    --red-bg:#FCEBEB;   --red-tx:#791F1F;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#1e1e1c; --bg2:#2a2a28; --text:#f0f0ee; --text2:#9b9b99; --text3:#6b6b69; --border:rgba(255,255,255,0.12); }
+    :root {
+      --bg:#1e1e1c; --bg2:#2a2a28; --text:#f0f0ee; --text2:#9b9b99; --text3:#6b6b69;
+      --border:rgba(255,255,255,0.12);
+      --green-bg:#173404; --green-tx:#C0DD97;
+      --amber-bg:#412402; --amber-tx:#FAC775;
+      --red-bg:#501313;   --red-tx:#F7C1C1;
+    }
   }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 16px; }
-  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 20px; margin-bottom: 12px; max-width: 520px; margin-left: auto; margin-right: auto; }
-  hr { border: none; border-top: 0.5px solid var(--border); margin: 14px 0; }
-  .stat-label { font-size: 12px; color: var(--text2); margin-bottom: 3px; }
-  .stat-val { font-size: 20px; font-weight: 500; }
-  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; display: inline-block; margin-top: 4px; }
-  .updated { font-size: 11px; color: var(--text3); margin-top: 10px; }
-  .gear-item { font-size: 12px; color: var(--text2); padding: 3px 0; display: flex; align-items: center; gap: 6px; }
-  .gear-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
-  .day-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 0.5px solid var(--border); }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); padding: 12px; }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--r-lg); padding: 16px; margin-bottom: 10px; }
+  hr { border: none; border-top: 0.5px solid var(--border); margin: 12px 0; }
+  .label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+  .val { font-size: 18px; font-weight: 500; }
+  .pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; display: inline-block; margin-top: 3px; }
+  .p-ok  { background: var(--green-bg); color: var(--green-tx); }
+  .p-bad { background: var(--red-bg);   color: var(--red-tx); }
+  .gear-row { font-size: 12px; color: var(--text2); padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+  .gear-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--text3); flex-shrink: 0; }
+  .day-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 0.5px solid var(--border); }
   .day-row:last-child { border-bottom: none; }
-  .score-badge { font-size: 10px; font-weight: 500; padding: 3px 8px; border-radius: 999px; white-space: nowrap; min-width: 76px; text-align: center; }
-  .retry-btn { font-size: 12px; padding: 3px 10px; border: 0.5px solid var(--border); border-radius: 6px; background: transparent; color: var(--text); cursor: pointer; }
+  .badge { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .updated { font-size: 11px; color: var(--text3); margin-top: 10px; }
 </style>
 </head>
 <body>
-<div class="card"><div id="now-content" style="display:flex;align-items:center;justify-content:center;height:80px;font-size:13px;color:var(--text2);">Loading Helsinki weather...</div></div>
-<div class="card"><div id="week-content" style="height:40px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text2);">Loading forecast...</div></div>
+
+<div class="card" id="now-card">
+  <div style="font-size:13px;color:var(--text2);padding:30px 0;text-align:center;">Loading weather…</div>
+</div>
+
+<div class="card" id="week-card">
+  <div style="font-size:13px;color:var(--text2);padding:20px 0;text-align:center;">Loading forecast…</div>
+</div>
 
 <script>
-const PREFS = { minTemp:-10, winterPantsTemp:-5, comfortCalm:5, comfortWindy:10, maxWind:5, maxGust:10 };
+const P = { minTemp:-10, winterPants:-5, comfortCalm:5, comfortWindy:10, maxWind:5, maxGust:10 };
 
 const LEVELS = [
-  { score:5, label:'Perfect',      bg:'#EAF3DE', color:'#27500A', darkBg:'#173404', darkColor:'#C0DD97' },
-  { score:4, label:'Good',         bg:'#D6ECC0', color:'#27500A', darkBg:'#27500A', darkColor:'#C0DD97' },
-  { score:3, label:'With caution', bg:'#FAEEDA', color:'#633806', darkBg:'#412402', darkColor:'#FAC775' },
-  { score:2, label:'Not ideal',    bg:'#FAD9B0', color:'#633806', darkBg:'#412402', darkColor:'#FAC775' },
-  { score:1, label:'Skip',         bg:'#FCEBEB', color:'#791F1F', darkBg:'#501313', darkColor:'#F7C1C1' },
+  { n:5, label:'Perfect',      bg:'var(--green-bg)', tx:'var(--green-tx)' },
+  { n:4, label:'Good',         bg:'var(--green-bg)', tx:'var(--green-tx)' },
+  { n:3, label:'With caution', bg:'var(--amber-bg)', tx:'var(--amber-tx)' },
+  { n:2, label:'Not ideal',    bg:'var(--amber-bg)', tx:'var(--amber-tx)' },
+  { n:1, label:'Skip today',   bg:'var(--red-bg)',   tx:'var(--red-tx)'   },
 ];
 
-const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-function lvStyle(lv) {
-  return `background:${dark?lv.darkBg:lv.bg};color:${dark?lv.darkColor:lv.color};`;
-}
-
 function getScore(temp, wind, gust, wmo) {
-  if (temp < PREFS.minTemp) return 1;
-  const isWindy = wind >= PREFS.maxWind;
-  const comfortThreshold = isWindy ? PREFS.comfortWindy : PREFS.comfortCalm;
+  if (temp < P.minTemp) return 1;
+  const isWindy = wind >= P.maxWind;
+  const threshold = isWindy ? P.comfortWindy : P.comfortCalm;
   const rainy = (wmo>=51&&wmo<=67)||(wmo>=80&&wmo<=82)||wmo>=95;
   const snowy = (wmo>=71&&wmo<=77)||(wmo>=85&&wmo<=86);
-  let penalty = 0;
-  if (wind >= PREFS.maxWind || gust >= PREFS.maxGust) penalty++;
-  if (rainy) penalty++;
-  if (snowy) penalty++;
-  if (temp < comfortThreshold && temp >= PREFS.minTemp) penalty++;
-  if (temp < PREFS.winterPantsTemp) penalty++;
-  return Math.max(1, 5 - penalty);
+  let pen = 0;
+  if (wind >= P.maxWind || gust >= P.maxGust) pen++;
+  if (rainy)  pen++;
+  if (snowy)  pen++;
+  if (temp < threshold) pen++;
+  if (temp < P.winterPants) pen++;
+  return Math.max(1, 5 - pen);
 }
 
-function levelInfo(score) { return LEVELS.find(l => l.score === score) || LEVELS[4]; }
+function lv(n) { return LEVELS.find(l => l.n === n); }
 
 function getGear(temp, wind, wmo) {
-  if (temp < PREFS.minTemp) return ['Too cold — stay inside'];
-  const gear = [];
+  if (temp < P.minTemp) return ['Too cold — stay inside'];
+  const g = [];
   const rainy = (wmo>=51&&wmo<=67)||(wmo>=80&&wmo<=82)||wmo>=95;
   const snowy = (wmo>=71&&wmo<=77)||(wmo>=85&&wmo<=86);
-  if (temp < PREFS.winterPantsTemp) gear.push('Winter pants');
-  else if (temp < PREFS.comfortCalm) gear.push('Thermal tights');
-  if (temp < 0) gear.push('Insulated gloves & balaclava');
-  else if (temp < 5) gear.push('Gloves & warm hat');
-  if (temp < 5) gear.push('Winter jacket');
-  else if (temp < 10) gear.push('Fleece or light jacket');
-  else gear.push('Regular cycling kit');
-  if (rainy) gear.push('Waterproof jacket');
-  if (snowy) gear.push('Studded tires');
-  if (wind >= PREFS.maxWind) gear.push('Windproof outer layer');
-  return gear;
+  if (temp < P.winterPants)      g.push('Winter pants');
+  else if (temp < P.comfortCalm) g.push('Thermal tights');
+  if (temp < 0)                  g.push('Insulated gloves & balaclava');
+  else if (temp < 5)             g.push('Gloves & warm hat');
+  if (temp < 5)                  g.push('Winter jacket');
+  else if (temp < 10)            g.push('Fleece or light jacket');
+  else                           g.push('Regular cycling kit');
+  if (rainy)                     g.push('Waterproof jacket');
+  if (snowy)                     g.push('Studded tires');
+  if (wind >= P.maxWind)         g.push('Windproof outer layer');
+  return g;
 }
 
 function wmoIcon(c) {
-  if (c===0) return '☀️'; if (c<=2) return '⛅'; if (c===3) return '☁️';
-  if (c<=49) return '🌫️'; if (c<=57) return '🌦️'; if (c<=65) return '🌧️';
-  if (c<=77) return '❄️'; if (c<=82) return '🌧️'; if (c<=86) return '🌨️';
-  return '⛈️';
+  if(c===0)return'☀️';if(c<=2)return'⛅';if(c===3)return'☁️';
+  if(c<=49)return'🌫️';if(c<=57)return'🌦️';if(c<=65)return'🌧️';
+  if(c<=77)return'❄️';if(c<=82)return'🌧️';if(c<=86)return'🌨️';
+  return'⛈️';
 }
 
 function tempColor(t) {
-  if (t < -5) return '#85B7EB'; if (t < 5) return '#9FE1CB';
-  if (t < 15) return '#97C459'; return '#EF9F27';
+  if(t<-5)return'#85B7EB';if(t<5)return'#9FE1CB';if(t<15)return'#97C459';return'#EF9F27';
 }
 
-function renderNow(data) {
+function renderNow(d) {
   const now = new Date();
-  let idx = data.hourly.time.findIndex(t => new Date(t) >= now);
-  if (idx < 0) idx = 0;
-  const temp=data.hourly.temperature_2m[idx], wind=data.hourly.wind_speed_10m[idx];
-  const gust=data.hourly.wind_gusts_10m[idx], wmo=data.hourly.weather_code[idx];
-  const hum=data.hourly.relative_humidity_2m[idx];
-  const score=getScore(temp,wind,gust,wmo), lv=levelInfo(score);
-  const gear=getGear(temp,wind,wmo);
-  const updatedStr=now.toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'});
+  let i = d.hourly.time.findIndex(t => new Date(t) >= now);
+  if (i < 0) i = 0;
+  const temp=d.hourly.temperature_2m[i], wind=d.hourly.wind_speed_10m[i];
+  const gust=d.hourly.wind_gusts_10m[i], wmo=d.hourly.weather_code[i];
+  const hum=d.hourly.relative_humidity_2m[i];
+  const sc=getScore(temp,wind,gust,wmo), l=lv(sc), gr=getGear(temp,wind,wmo);
+  const ts=now.toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'});
 
-  const hours=[];
-  for(let i=0;i<12;i++){
-    const j=idx+i; if(j>=data.hourly.time.length) break;
-    const hr=new Date(data.hourly.time[j]).getHours();
-    const t=data.hourly.temperature_2m[j],w=data.hourly.wind_speed_10m[j];
-    const g=data.hourly.wind_gusts_10m[j],c=data.hourly.weather_code[j];
-    const sc=getScore(t,w,g,c), lc=levelInfo(sc);
-    hours.push({hr,temp:t,bg:dark?lc.darkBg:lc.bg});
+  const hrs=[];
+  for(let k=0;k<12;k++){
+    const j=i+k; if(j>=d.hourly.time.length)break;
+    const hr=new Date(d.hourly.time[j]).getHours();
+    const t=d.hourly.temperature_2m[j],w=d.hourly.wind_speed_10m[j];
+    const g2=d.hourly.wind_gusts_10m[j],c=d.hourly.weather_code[j];
+    const l2=lv(getScore(t,w,g2,c));
+    hrs.push({hr,temp:t,bg:l2.bg,tx:l2.tx});
   }
 
-  const windOk=wind<PREFS.maxWind, gustOk=gust<PREFS.maxGust;
-  const okBg=dark?'#173404':'#EAF3DE', okTxt=dark?'#C0DD97':'#27500A';
-  const badBg=dark?'#501313':'#FCEBEB', badTxt=dark?'#F7C1C1':'#791F1F';
+  document.getElementById('now-card').innerHTML = `
+    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Helsinki · now</div>
 
-  document.getElementById('now-content').innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
-      <div>
-        <div style="font-size:12px;color:var(--text2);margin-bottom:4px;">Helsinki · now</div>
-        <div style="display:flex;align-items:baseline;gap:8px;">
-          <span style="font-size:42px;font-weight:500;">${Math.round(temp)}°</span>
-          <span style="font-size:22px;">${wmoIcon(wmo)}</span>
-        </div>
-      </div>
-      <div style="text-align:right;">
-        <div style="${lvStyle(lv)}border-radius:8px;padding:8px 16px;font-size:13px;font-weight:500;">${lv.label}</div>
-        <div style="font-size:11px;color:var(--text2);margin-top:5px;">score ${score} / 5</div>
-      </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+      <span style="font-size:48px;font-weight:500;line-height:1;">${Math.round(temp)}°</span>
+      <span style="font-size:30px;line-height:1;">${wmoIcon(wmo)}</span>
     </div>
-    <hr>
+
+    <div style="background:${l.bg};border-radius:var(--r-md);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <span style="font-size:15px;font-weight:500;color:${l.tx};">${l.label}</span>
+      <span style="font-size:12px;color:${l.tx};opacity:0.75;">${sc} / 5</span>
+    </div>
+
     <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:14px;">
-      <div><div class="stat-label">Wind</div><div class="stat-val">${Math.round(wind)} <span style="font-size:12px;font-weight:400;color:var(--text2);">m/s</span></div><span class="pill" style="background:${windOk?okBg:badBg};color:${windOk?okTxt:badTxt};">${windOk?'calm':'strong'}</span></div>
-      <div><div class="stat-label">Gusts</div><div class="stat-val">${Math.round(gust)} <span style="font-size:12px;font-weight:400;color:var(--text2);">m/s</span></div><span class="pill" style="background:${gustOk?okBg:badBg};color:${gustOk?okTxt:badTxt};">${gustOk?'ok':'gusty'}</span></div>
-      <div><div class="stat-label">Humidity</div><div class="stat-val">${Math.round(hum)}<span style="font-size:12px;font-weight:400;color:var(--text2);">%</span></div></div>
+      <div>
+        <div class="label">Wind</div>
+        <div class="val">${Math.round(wind)}<span style="font-size:12px;font-weight:400;color:var(--text2);"> m/s</span></div>
+        <span class="pill ${wind<P.maxWind?'p-ok':'p-bad'}">${wind<P.maxWind?'calm':'strong'}</span>
+      </div>
+      <div>
+        <div class="label">Gusts</div>
+        <div class="val">${Math.round(gust)}<span style="font-size:12px;font-weight:400;color:var(--text2);"> m/s</span></div>
+        <span class="pill ${gust<P.maxGust?'p-ok':'p-bad'}">${gust<P.maxGust?'ok':'gusty'}</span>
+      </div>
+      <div>
+        <div class="label">Humidity</div>
+        <div class="val">${Math.round(hum)}<span style="font-size:12px;font-weight:400;color:var(--text2);">%</span></div>
+      </div>
     </div>
-    <div style="font-size:12px;font-weight:500;margin-bottom:6px;">What to wear</div>
-    ${gear.map(g=>`<div class="gear-item"><div class="gear-dot"></div>${g}</div>`).join('')}
+
     <hr>
+
+    <div style="font-size:12px;font-weight:500;margin-bottom:7px;">What to wear</div>
+    ${gr.map(g=>`<div class="gear-row"><div class="gear-dot"></div>${g}</div>`).join('')}
+
+    <hr>
+
     <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Next 12 hours</div>
-    <div style="display:flex;gap:3px;align-items:flex-end;height:56px;">
-      ${hours.map(h=>{
-        const barH=Math.max(4,Math.min(40,(h.temp+20)*1.3));
-        return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">
+    <div style="display:flex;gap:3px;align-items:flex-end;height:52px;">
+      ${hrs.map(h=>{
+        const bh=Math.max(4,Math.min(38,(h.temp+20)*1.2));
+        return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;">
           <div style="width:100%;flex:1;display:flex;align-items:flex-end;">
-            <div style="width:100%;height:${barH}px;background:${tempColor(h.temp)};border-radius:2px;opacity:0.75;"></div>
+            <div style="width:100%;height:${bh}px;background:${tempColor(h.temp)};border-radius:2px;opacity:0.8;"></div>
           </div>
-          <div style="width:8px;height:8px;border-radius:50%;background:${h.bg};border:1px solid var(--border);"></div>
-          <div style="font-size:9px;color:var(--text2);">${h.hr}h</div>
+          <div style="width:7px;height:7px;border-radius:50%;background:${h.bg};border:0.5px solid var(--border);flex-shrink:0;"></div>
+          <div style="font-size:9px;color:var(--text3);">${h.hr}h</div>
         </div>`;
       }).join('')}
     </div>
-    <div class="updated">Updated ${updatedStr} · refreshes every 30 min</div>
+
+    <div class="updated">Updated ${ts} · refreshes every 30 min</div>
   `;
 }
 
-function renderWeek(data) {
-  const days=data.daily;
-  const dayNames=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-  const rows=days.time.map((dateStr,i)=>{
-    const d=new Date(dateStr);
-    const name=i===0?'Today':i===1?'Tomorrow':dayNames[d.getDay()];
-    const tmax=days.temperature_2m_max[i], tmin=days.temperature_2m_min[i];
-    const wind=days.wind_speed_10m_max[i], gust=days.wind_gusts_10m_max[i], wmo=days.weather_code[i];
-    const score=getScore((tmax+tmin)/2,wind,gust,wmo), lv=levelInfo(score);
+function renderWeek(d) {
+  const day=d.daily, names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const rows=day.time.map((ds,i)=>{
+    const name=i===0?'Today':i===1?'Tomorrow':names[new Date(ds).getDay()];
+    const tmax=day.temperature_2m_max[i], tmin=day.temperature_2m_min[i];
+    const wind=day.wind_speed_10m_max[i], gust=day.wind_gusts_10m_max[i], wmo=day.weather_code[i];
+    const l=lv(getScore((tmax+tmin)/2,wind,gust,wmo));
     return `<div class="day-row">
-      <div style="font-size:13px;font-weight:500;width:70px;flex-shrink:0;">${name}</div>
-      <div style="font-size:16px;flex-shrink:0;">${wmoIcon(wmo)}</div>
-      <div style="flex:1;font-size:12px;color:var(--text2);">${Math.round(tmin)}°–${Math.round(tmax)}° &nbsp;💨${Math.round(wind)}m/s</div>
-      <div class="score-badge" style="${lvStyle(lv)}">${lv.label}</div>
+      <div style="width:76px;flex-shrink:0;font-size:13px;font-weight:500;">${name}</div>
+      <div style="font-size:18px;flex-shrink:0;width:26px;line-height:1;">${wmoIcon(wmo)}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;">${Math.round(tmin)}° – ${Math.round(tmax)}°</div>
+        <div style="font-size:11px;color:var(--text2);">wind ${Math.round(wind)} m/s</div>
+      </div>
+      <span class="badge" style="background:${l.bg};color:${l.tx};">${l.label}</span>
     </div>`;
   });
-  document.getElementById('week-content').innerHTML = `
-    <div style="font-size:12px;font-weight:500;margin-bottom:4px;">7-day forecast</div>
+
+  document.getElementById('week-card').innerHTML = `
+    <div style="font-size:12px;font-weight:500;margin-bottom:8px;">7-day forecast</div>
     ${rows.join('')}
-    <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;">
-      ${LEVELS.map(l=>`<span style="font-size:11px;${lvStyle(l)}padding:2px 8px;border-radius:999px;">${l.score} · ${l.label}</span>`).join('')}
+    <hr>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;">
+      ${LEVELS.map(l=>`<span style="font-size:10px;background:${l.bg};color:${l.tx};padding:2px 8px;border-radius:999px;">${l.n} · ${l.label}</span>`).join('')}
     </div>
   `;
 }
 
 async function load() {
   try {
-    const url='https://api.open-meteo.com/v1/forecast?latitude=60.1699&longitude=24.9384' +
-      '&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,weather_code' +
-      '&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,weather_code' +
-      '&wind_speed_unit=ms&forecast_days=7&timezone=Europe%2FHelsinki';
+    const url='https://api.open-meteo.com/v1/forecast?latitude=60.1699&longitude=24.9384'
+      +'&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,weather_code'
+      +'&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,weather_code'
+      +'&wind_speed_unit=ms&forecast_days=7&timezone=Europe%2FHelsinki';
     const res=await fetch(url);
-    if(!res.ok) throw new Error();
+    if(!res.ok)throw new Error();
     const data=await res.json();
-    renderNow(data); renderWeek(data);
+    renderNow(data);
+    renderWeek(data);
   } catch(e) {
-    document.getElementById('now-content').innerHTML='<div style="text-align:center;padding:20px 0;font-size:13px;color:var(--text2);">Could not load weather &nbsp;<button class="retry-btn" onclick="load()">Retry</button></div>';
-    document.getElementById('week-content').innerHTML='';
+    document.getElementById('now-card').innerHTML='<div style="text-align:center;padding:24px 0;font-size:13px;color:var(--text2);">Could not load weather &nbsp;<button onclick="load()" style="font-size:12px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;">Retry</button></div>';
+    document.getElementById('week-card').innerHTML='';
   }
 }
 load();
