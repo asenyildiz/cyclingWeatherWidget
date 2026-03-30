@@ -82,6 +82,15 @@ function getScore(temp, wind, gust, wmo) {
 
 function lv(n) { return LEVELS.find(l => l.n === n); }
 
+// Returns the label, appending "... but cold" if score >= 4 and temp < 5
+function getLabel(score, temp) {
+  const l = lv(score);
+  if (temp < P.comfortCalm && score >= 4) {
+    return { ...l, label: l.label + ' · but cold' };
+  }
+  return l;
+}
+
 function getGear(temp, wind, wmo) {
   if (temp < P.minTemp) return ['Too cold — stay inside'];
   const g = [];
@@ -107,37 +116,90 @@ function wmoIcon(c) {
   return'⛈️';
 }
 
-function tempColor(t) {
-  if(t<-5)return'#85B7EB';if(t<5)return'#9FE1CB';if(t<15)return'#97C459';return'#EF9F27';
+// Precipitation bar color: blue shades by intensity
+function precipColor(mm) {
+  if (mm <= 0)   return 'var(--border)';
+  if (mm < 0.5)  return '#B3D9F7';
+  if (mm < 2)    return '#6AB4EE';
+  if (mm < 5)    return '#2F86D4';
+  return '#1255A0';
+}
+
+function formatSunset(isoString) {
+  if (!isoString) return '—';
+  const d = new Date(isoString);
+  return d.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
 }
 
 function renderNow(d) {
   const now = new Date();
   let i = d.hourly.time.findIndex(t => new Date(t) >= now);
   if (i < 0) i = 0;
-  const temp=d.hourly.temperature_2m[i], wind=d.hourly.wind_speed_10m[i];
-  const gust=d.hourly.wind_gusts_10m[i], wmo=d.hourly.weather_code[i];
-  const hum=d.hourly.relative_humidity_2m[i];
-  const sc=getScore(temp,wind,gust,wmo), l=lv(sc), gr=getGear(temp,wind,wmo);
-  const ts=now.toLocaleTimeString('fi-FI',{hour:'2-digit',minute:'2-digit'});
+  const temp    = d.hourly.temperature_2m[i];
+  const wind    = d.hourly.wind_speed_10m[i];
+  const gust    = d.hourly.wind_gusts_10m[i];
+  const wmo     = d.hourly.weather_code[i];
+  const hum     = d.hourly.relative_humidity_2m[i];
+  const feelsLike = d.hourly.apparent_temperature[i];
 
-  const hrs=[];
-  for(let k=0;k<12;k++){
-    const j=i+k; if(j>=d.hourly.time.length)break;
-    const hr=new Date(d.hourly.time[j]).getHours();
-    const t=d.hourly.temperature_2m[j],w=d.hourly.wind_speed_10m[j];
-    const g2=d.hourly.wind_gusts_10m[j],c=d.hourly.weather_code[j];
-    const l2=lv(getScore(t,w,g2,c));
-    hrs.push({hr,temp:t,bg:l2.bg,tx:l2.tx});
+  const sc = getScore(temp, wind, gust, wmo);
+  const l  = getLabel(sc, temp);
+  const gr = getGear(temp, wind, wmo);
+  const ts = now.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' });
+
+  // Sunset from daily data (today = index 0)
+  const sunsetStr = d.daily && d.daily.sunset ? formatSunset(d.daily.sunset[0]) : '—';
+
+  // Build 24-hour bars from now
+  const hrs = [];
+  const MAX_BAR_MM = 5; // mm — cap for bar scaling
+  const BAR_MAX_HEIGHT = 38; // px
+  for (let k = 0; k < 24; k++) {
+    const j = i + k;
+    if (j >= d.hourly.time.length) break;
+    const hr    = new Date(d.hourly.time[j]).getHours();
+    const t     = d.hourly.temperature_2m[j];
+    const w     = d.hourly.wind_speed_10m[j];
+    const g2    = d.hourly.wind_gusts_10m[j];
+    const c     = d.hourly.weather_code[j];
+    const fl    = d.hourly.apparent_temperature[j];
+    const precip = d.hourly.precipitation[j] || 0;
+    const l2    = lv(getScore(t, w, g2, c));
+    // bar height: 4px minimum, scales up to BAR_MAX_HEIGHT at MAX_BAR_MM
+    const bh = precip > 0
+      ? Math.max(6, Math.min(BAR_MAX_HEIGHT, (precip / MAX_BAR_MM) * BAR_MAX_HEIGHT))
+      : 4;
+    hrs.push({ hr, temp: t, feelsLike: fl, precip, bh, barColor: precipColor(precip), dotBg: l2.bg });
   }
 
-  document.getElementById('now-card').innerHTML = `
-    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Helsinki · now</div>
+  // Show feels-like label only when there's enough bar height (>=14px) so text fits
+  const barSection = hrs.map(h => {
+    const showFL = h.bh >= 16;
+    const flLabel = showFL
+      ? `<div style="position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:8px;color:#fff;font-weight:600;line-height:1;text-shadow:0 0 3px rgba(0,0,0,0.6);">${Math.round(h.feelsLike)}°</div>`
+      : '';
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;">
+      <div style="width:100%;flex:1;display:flex;align-items:flex-end;position:relative;">
+        <div style="position:relative;width:100%;height:${h.bh}px;background:${h.barColor};border-radius:2px;overflow:hidden;">
+          ${flLabel}
+        </div>
+      </div>
+      <div style="width:7px;height:7px;border-radius:50%;background:${h.dotBg};border:0.5px solid var(--border);flex-shrink:0;"></div>
+      <div style="font-size:8px;color:var(--text3);">${h.hr}h</div>
+    </div>`;
+  }).join('');
 
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+  document.getElementById('now-card').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--text2);">Helsinki · now</div>
+      <div style="font-size:11px;color:var(--text2);">🌇 Sunset ${sunsetStr}</div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
       <span style="font-size:48px;font-weight:500;line-height:1;">${Math.round(temp)}°</span>
       <span style="font-size:30px;line-height:1;">${wmoIcon(wmo)}</span>
     </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">Feels like ${Math.round(feelsLike)}°</div>
 
     <div style="background:${l.bg};border-radius:var(--r-md);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
       <span style="font-size:15px;font-weight:500;color:${l.tx};">${l.label}</span>
@@ -168,19 +230,10 @@ function renderNow(d) {
 
     <hr>
 
-    <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">Next 12 hours</div>
-    <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Bar height & color = temperature · Dot color = cycling score</div>
-    <div style="display:flex;gap:3px;align-items:flex-end;height:52px;">
-      ${hrs.map(h=>{
-        const bh=Math.max(4,Math.min(38,(h.temp+20)*1.2));
-        return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;">
-          <div style="width:100%;flex:1;display:flex;align-items:flex-end;">
-            <div style="width:100%;height:${bh}px;background:${tempColor(h.temp)};border-radius:2px;opacity:0.8;"></div>
-          </div>
-          <div style="width:7px;height:7px;border-radius:50%;background:${h.bg};border:0.5px solid var(--border);flex-shrink:0;"></div>
-          <div style="font-size:9px;color:var(--text3);">${h.hr}h</div>
-        </div>`;
-      }).join('')}
+    <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Next 24 hours</div>
+    <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Bar height = precipitation (mm) · Feels-like °C inside bar · Dot = cycling score</div>
+    <div style="display:flex;gap:2px;align-items:flex-end;height:60px;">
+      ${barSection}
     </div>
 
     <div class="updated">Updated ${ts} · refreshes every 30 min</div>
@@ -193,7 +246,9 @@ function renderWeek(d) {
     const name=i===0?'Today':i===1?'Tomorrow':names[new Date(ds).getDay()];
     const tmax=day.temperature_2m_max[i], tmin=day.temperature_2m_min[i];
     const wind=day.wind_speed_10m_max[i], gust=day.wind_gusts_10m_max[i], wmo=day.weather_code[i];
-    const l=lv(getScore((tmax+tmin)/2,wind,gust,wmo));
+    const avgTemp=(tmax+tmin)/2;
+    const sc=getScore(avgTemp,wind,gust,wmo);
+    const l=getLabel(sc,avgTemp);
     return `<div class="day-row">
       <div style="width:76px;flex-shrink:0;font-size:13px;font-weight:500;">${name}</div>
       <div style="font-size:18px;flex-shrink:0;width:26px;line-height:1;">${wmoIcon(wmo)}</div>
@@ -217,22 +272,22 @@ function renderWeek(d) {
 
 async function load() {
   try {
-    const url='https://api.open-meteo.com/v1/forecast?latitude=60.1699&longitude=24.9384'
-      +'&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,weather_code'
-      +'&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,weather_code'
-      +'&wind_speed_unit=ms&forecast_days=7&timezone=Europe%2FHelsinki';
-    const res=await fetch(url);
-    if(!res.ok)throw new Error();
-    const data=await res.json();
+    const url = 'https://api.open-meteo.com/v1/forecast?latitude=60.1699&longitude=24.9384'
+      + '&hourly=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_gusts_10m,weather_code,precipitation'
+      + '&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_gusts_10m_max,weather_code,sunset'
+      + '&wind_speed_unit=ms&forecast_days=7&timezone=Europe%2FHelsinki';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
     renderNow(data);
     renderWeek(data);
   } catch(e) {
-    document.getElementById('now-card').innerHTML='<div style="text-align:center;padding:24px 0;font-size:13px;color:var(--text2);">Could not load weather &nbsp;<button onclick="load()" style="font-size:12px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;">Retry</button></div>';
-    document.getElementById('week-card').innerHTML='';
+    document.getElementById('now-card').innerHTML = '<div style="text-align:center;padding:24px 0;font-size:13px;color:var(--text2);">Could not load weather &nbsp;<button onclick="load()" style="font-size:12px;padding:3px 10px;border:0.5px solid var(--border);border-radius:6px;background:transparent;color:var(--text);cursor:pointer;">Retry</button></div>';
+    document.getElementById('week-card').innerHTML = '';
   }
 }
 load();
-setInterval(load,30*60*1000);
+setInterval(load, 30*60*1000);
 </script>
 </body>
 </html>
