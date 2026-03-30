@@ -172,17 +172,11 @@ function renderNow(d) {
     hrs.push({ hr, temp: t, feelsLike: fl, precip, bh, barColor: precipColor(precip), dotBg: l2.bg });
   }
 
-  // Show feels-like label only when there's enough bar height (>=14px) so text fits
   const barSection = hrs.map(h => {
-    const showFL = h.bh >= 16;
-    const flLabel = showFL
-      ? `<div style="position:absolute;bottom:2px;left:0;right:0;text-align:center;font-size:8px;color:#fff;font-weight:600;line-height:1;text-shadow:0 0 3px rgba(0,0,0,0.6);">${Math.round(h.feelsLike)}°</div>`
-      : '';
     return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1;min-width:0;">
-      <div style="width:100%;flex:1;display:flex;align-items:flex-end;position:relative;">
-        <div style="position:relative;width:100%;height:${h.bh}px;background:${h.barColor};border-radius:2px;overflow:hidden;">
-          ${flLabel}
-        </div>
+      <div style="font-size:8px;color:var(--text2);line-height:1;text-align:center;">${Math.round(h.feelsLike)}°</div>
+      <div style="width:100%;flex:1;display:flex;align-items:flex-end;">
+        <div style="width:100%;height:${h.bh}px;background:${h.barColor};border-radius:2px;"></div>
       </div>
       <div style="width:7px;height:7px;border-radius:50%;background:${h.dotBg};border:0.5px solid var(--border);flex-shrink:0;"></div>
       <div style="font-size:8px;color:var(--text3);">${h.hr}h</div>
@@ -232,7 +226,7 @@ function renderNow(d) {
 
     <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Next 24 hours</div>
     <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Bar height = precipitation (mm) · Feels-like °C inside bar · Dot = cycling score</div>
-    <div style="display:flex;gap:2px;align-items:flex-end;height:60px;">
+    <div style="display:flex;gap:2px;align-items:flex-end;height:74px;">
       ${barSection}
     </div>
 
